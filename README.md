@@ -1,39 +1,39 @@
-# akinator-api-v2-unofficial
+# akinator-client
 
-Módulo JS/TS não-oficial para a API do Akinator. Suporta múltiplos idiomas, temas e o ciclo completo do jogo.
+Unofficial Node.js/TypeScript client for the Akinator game API. Supports multiple languages, themes, and the full game lifecycle.
 
-## Instalação
+## Installation
 
 ```bash
-npm install akinator-api-v2-unofficial
+npm install akinator-client
 ```
 
-## Uso
+## Usage
 
 ```js
-import { AkinatorClient, Languages, Answers, Themes } from "akinator-api-v2-unofficial";
+import { AkinatorClient, Languages, Answers, Themes } from "akinator-client";
 
 const akinator = new AkinatorClient({
-  language: Languages.Portuguese,
+  language: Languages.English,
   theme: Themes.Character,
   childMode: false,
 });
 
-// Iniciar jogo
+// Start game
 const first = await akinator.start();
-console.log(first.question); // "É uma pessoa real?"
+console.log(first.question); // "Is your character real?"
 
-// Responder perguntas
+// Answer questions
 const result = await akinator.answer(Answers.Yes);
 console.log(result.question);
 
-// Voltar à pergunta anterior
+// Go back to previous question
 const back = await akinator.back();
 
-// Quando o Akinator adivinhar
+// When Akinator guesses
 if (result.won) {
-  console.log(akinator.winResult.name); // Nome do personagem
-  await akinator.submitWin(); // Confirmar chute
+  console.log(akinator.winResult.name); // Character name
+  await akinator.submitWin(); // Confirm guess
 }
 ```
 
@@ -41,33 +41,33 @@ if (result.won) {
 
 ### `new AkinatorClient(options?)`
 
-| Opção | Tipo | Padrão | Descrição |
-|-------|------|--------|-----------|
-| `language` | `Languages` | `Portuguese` | Idioma do jogo |
-| `theme` | `Themes` | `Character` | Tema do jogo |
-| `childMode` | `boolean` | `false` | Modo infantil |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `language` | `Languages` | `Portuguese` | Game language |
+| `theme` | `Themes` | `Character` | Game theme |
+| `childMode` | `boolean` | `false` | Child mode |
 
-### Métodos
+### Methods
 
-| Método | Retorna | Descrição |
-|--------|---------|-----------|
-| `start()` | `Promise<AnswerResult>` | Inicia uma nova partida |
-| `answer(answer)` | `Promise<AnswerResult>` | Responde a pergunta atual |
-| `back()` | `Promise<AnswerResult>` | Volta à pergunta anterior |
-| `continue()` | `Promise<AnswerResult>` | Continua após chute errado |
-| `submitWin()` | `Promise<void>` | Confirma chute correto |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `start()` | `Promise<AnswerResult>` | Start a new game |
+| `answer(answer)` | `Promise<AnswerResult>` | Answer the current question |
+| `back()` | `Promise<AnswerResult>` | Go back to the previous question |
+| `continue()` | `Promise<AnswerResult>` | Continue after a wrong guess |
+| `submitWin()` | `Promise<void>` | Confirm a correct guess |
 
-### Propriedades
+### Properties
 
-| Propriedade | Tipo | Descrição |
-|-------------|------|-----------|
-| `question` | `string` | Pergunta atual |
-| `step` | `number` | Número da pergunta (0-indexed) |
-| `progression` | `number` | Progresso (0-100) |
-| `won` | `boolean` | Se o Akinator acertou |
-| `ko` | `boolean` | Se o Akinator desistiu |
-| `started` | `boolean` | Se o jogo começou |
-| `winResult` | `WinResult` | Dados do personagem (após `won: true`) |
+| Property | Type | Description |
+|----------|------|-------------|
+| `question` | `string` | Current question |
+| `step` | `number` | Question number (0-indexed) |
+| `progression` | `number` | Progress (0-100) |
+| `won` | `boolean` | Whether Akinator guessed correctly |
+| `ko` | `boolean` | Whether Akinator gave up |
+| `started` | `boolean` | Whether the game has started |
+| `winResult` | `WinResult` | Character data (after `won: true`) |
 
 ### `AnswerResult`
 
@@ -96,10 +96,10 @@ interface WinResult {
 }
 ```
 
-## Idiomas
+## Languages
 
-| Código | Idioma | Temas |
-|--------|--------|-------|
+| Code | Language | Themes |
+|------|----------|--------|
 | `en` | English | Character, Animals, Objects |
 | `fr` | Français | Character, Animals, Objects |
 | `de` | Deutsch | Character, Animals |
@@ -117,20 +117,20 @@ interface WinResult {
 | `tr` | Türkçe | Character |
 | `id` | Indonesia | Character |
 
-## Temas
+## Themes
 
-| Temo | ID | Descrição |
-|------|-----|-----------|
-| `Themes.Character` | 1 | Personagens (padrão) |
-| `Themes.Objects` | 2 | Objetos |
-| `Themes.Animals` | 14 | Animais |
+| Theme | ID | Description |
+|-------|-----|-------------|
+| `Themes.Character` | 1 | Characters (default) |
+| `Themes.Objects` | 2 | Objects |
+| `Themes.Animals` | 14 | Animals |
 
-## Exemplo interativo
+## Interactive Example
 
 ```bash
 npx tsx example.js
 ```
 
-## Licença
+## License
 
 MIT

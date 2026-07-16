@@ -19,42 +19,42 @@ function ask(question) {
 }
 
 async function main() {
-  console.log("=== Akinator API v2 Unofficial ===\n");
+  console.log("=== Akinator Client ===\n");
 
   const aki = new AkinatorClient({
-    language: Languages.Portuguese,
+    language: Languages.English,
     childMode: false,
     theme: Themes.Character,
   });
 
-  console.log("Iniciando jogo...");
+  console.log("Starting game...");
   const first = await aki.start();
-  console.log(`\nPergunta: ${first.question}\n`);
+  console.log(`\nQuestion: ${first.question}\n`);
 
   while (!aki.won && !aki.ko) {
-    console.log("Respostas:");
-    console.log("  0 - Sim");
-    console.log("  1 - Não");
-    console.log("  2 - Não sei");
-    console.log("  3 - Provavelmente sim");
-    console.log("  4 - Provavelmente não");
-    console.log("  b - Voltar pergunta");
+    console.log("Answers:");
+    console.log("  0 - Yes");
+    console.log("  1 - No");
+    console.log("  2 - Don't know");
+    console.log("  3 - Probably yes");
+    console.log("  4 - Probably no");
+    console.log("  b - Go back");
 
-    const input = await ask("\nSua resposta (0-4 ou b): ");
+    const input = await ask("\nYour answer (0-4 or b): ");
 
     if (input.trim().toLowerCase() === "b") {
       try {
         const result = await aki.back();
-        console.log(`\n[Pergunta anterior] ${result.question}\n`);
+        console.log(`\n[Previous question] ${result.question}\n`);
       } catch (e) {
-        console.log(`\nErro: ${e.message}\n`);
+        console.log(`\nError: ${e.message}\n`);
       }
       continue;
     }
 
     const answerIndex = parseInt(input, 10);
     if (isNaN(answerIndex) || answerIndex < 0 || answerIndex > 4) {
-      console.log("\nResposta inválida. Use 0-4 ou b.\n");
+      console.log("\nInvalid answer. Use 0-4 or b.\n");
       continue;
     }
 
@@ -63,24 +63,24 @@ async function main() {
   }
 
   if (aki.ko) {
-    console.log("O Akinator não conseguiu adivinhar! Você venceu!");
+    console.log("Akinator couldn't guess! You won!");
   } else {
     const win = aki.winResult;
-    console.log("O Akinator fez um chute!");
-    console.log(`  Nome: ${win.name}`);
-    console.log(`  Descrição: ${win.description}`);
-    console.log(`  Enviado por: ${win.submittedBy}`);
-    if (win.pictureUrl) console.log(`  Foto: ${win.pictureUrl}`);
+    console.log("Akinator made a guess!");
+    console.log(`  Name: ${win.name}`);
+    console.log(`  Description: ${win.description}`);
+    console.log(`  Submitted by: ${win.submittedBy}`);
+    if (win.pictureUrl) console.log(`  Photo: ${win.pictureUrl}`);
 
-    const confirm = await ask("\nO Akinator acertou? (s/n): ");
-    if (confirm.trim().toLowerCase() === "s") {
+    const confirm = await ask("\nDid Akinator guess correctly? (y/n): ");
+    if (confirm.trim().toLowerCase() === "y") {
       await aki.submitWin();
-      console.log("Akinator confirmou a vitória!");
+      console.log("Akinator confirmed the win!");
     } else {
-      const cont = await ask("Continuar jogando? (s/n): ");
-      if (cont.trim().toLowerCase() === "s") {
+      const cont = await ask("Keep playing? (y/n): ");
+      if (cont.trim().toLowerCase() === "y") {
         const next = await aki.continue();
-        console.log(`\nContinuando... ${next.question}\n`);
+        console.log(`\nContinuing... ${next.question}\n`);
       }
     }
   }
@@ -89,6 +89,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Erro:", err.message);
+  console.error("Error:", err.message);
   rl.close();
 });
