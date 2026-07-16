@@ -37,6 +37,8 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 npm install akinator-client
 ```
 
+Create a new client and start a game:
+
 ```js
 import { AkinatorClient, Languages, Answers, Themes } from "akinator-client";
 
@@ -174,7 +176,8 @@ while (!akinator.won && !akinator.ko) {
   const idx = parseInt(input, 10);
   if (isNaN(idx) || idx < 0 || idx > 4) continue;
 
-  const result = await akinator.answer([Answers.Yes, Answers.No, Answers.IDontKnow, Answers.Probably, Answers.ProbablyNot][idx]);
+  const answers = [Answers.Yes, Answers.No, Answers.IDontKnow, Answers.Probably, Answers.ProbablyNot];
+  const result = await akinator.answer(answers[idx]);
   console.log(`\n(${result.step}/100 | ${result.progression.toFixed(1)}%) ${result.question}\n`);
 }
 
