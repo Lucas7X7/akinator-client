@@ -22,7 +22,7 @@ async function main() {
   console.log("=== Akinator Client ===\n");
 
   const aki = new AkinatorClient({
-    language: "en",
+    language: "pt",
     childMode: false,
     theme: Themes.Character,
   });

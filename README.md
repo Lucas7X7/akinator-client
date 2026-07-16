@@ -10,6 +10,8 @@ Unofficial Node.js/TypeScript client for the [Akinator](https://akinator.com/) g
 - TypeScript with dual ESM/CJS output
 - Cloudflare bypass built-in
 - Child mode support
+- Automatic retry on network errors
+- HTTP proxy support
 
 ## Quick Start
 
@@ -66,6 +68,8 @@ new AkinatorClient({ language: "en" })
 | `language` | `Languages` | `Portuguese` | Game language |
 | `theme` | `Themes` | `Character` | Game theme |
 | `childMode` | `boolean` | `false` | Enable child mode (no explicit content) |
+| `proxy` | `string` | - | HTTP proxy URL (e.g. `http://proxy:8080`) |
+| `retries` | `number` | `3` | Number of retries on network errors |
 
 ### Methods
 

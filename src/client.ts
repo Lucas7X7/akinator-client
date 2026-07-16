@@ -23,6 +23,8 @@ export interface AkinatorOptions {
   language?: Languages;
   childMode?: boolean;
   theme?: Themes;
+  proxy?: string;
+  retries?: number;
 }
 
 type GotScraping = typeof import("got-scraping").gotScraping;
@@ -54,6 +56,8 @@ export class AkinatorClient {
   private _language: Languages;
   private _childMode: boolean;
   private _theme: Themes;
+  private _proxy?: string;
+  private _retries: number;
 
   private _got!: GotScraping;
 
@@ -86,6 +90,8 @@ export class AkinatorClient {
     this._language = options.language ?? Languages.Portuguese;
     this._childMode = options.childMode ?? false;
     this._theme = options.theme ?? Themes.Character;
+    this._proxy = options.proxy;
+    this._retries = options.retries ?? 3;
   }
 
   private async _init(): Promise<void> {
@@ -95,14 +101,31 @@ export class AkinatorClient {
     }
   }
 
+  private async _requestWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt <= this._retries; attempt++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        lastError = err;
+        if (attempt < this._retries) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastError!;
+  }
+
   private async _get(url: string): Promise<string> {
     await this._init();
-    try {
-      const res = await this._got({ url, throwHttpErrors: false });
+    return this._requestWithRetry(async () => {
+      const res = await this._got({
+        url,
+        throwHttpErrors: false,
+        ...(this._proxy ? { proxy: this._proxy } : {}),
+      });
       return res.body;
-    } catch (err: any) {
-      throw new Error(`Network error: ${err.message}`);
-    }
+    });
   }
 
   private async _post(url: string, body: Record<string, string | number | boolean>, options: { followRedirect?: boolean } = {}): Promise<any> {
@@ -111,7 +134,7 @@ export class AkinatorClient {
     for (const [key, value] of Object.entries(body)) {
       formBody.append(key, String(value));
     }
-    try {
+    return this._requestWithRetry(async () => {
       const res = await this._got({
         url,
         method: "POST",
@@ -119,11 +142,10 @@ export class AkinatorClient {
         headers: { "content-type": "application/x-www-form-urlencoded" },
         throwHttpErrors: false,
         followRedirect: options.followRedirect ?? true,
+        ...(this._proxy ? { proxy: this._proxy } : {}),
       });
       return res;
-    } catch (err: any) {
-      throw new Error(`Network error: ${err.message}`);
-    }
+    });
   }
 
   async start(): Promise<AnswerResult> {

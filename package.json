@@ -18,6 +18,7 @@
     "build:esm": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build": "npm run build:esm && npm run build:cjs",
+    "test": "vitest run src/test.test.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -31,7 +32,8 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^26.1.1",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^3.2.7"
   },
   "dependencies": {
     "got-scraping": "^4.2.1"
