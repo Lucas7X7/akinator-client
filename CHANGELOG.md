@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-07-16
+
+### Added
+- Session persistence: `toJSON()` and `fromJSON()` methods
+- Discord bot example with buttons
+- Session persistence example (save/load to file)
+
+## [1.1.1] - 2026-07-16
+
+### Fixed
+- submitWin redirect loop
+
 ## [1.1.0] - 2026-07-16
 
 ### Added

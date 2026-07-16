@@ -19,6 +19,31 @@ export interface AnswerResult {
   answers: string[];
 }
 
+export interface SessionData {
+  session: string;
+  signature: string;
+  url: string;
+  identifiant: string;
+  question: string;
+  step: number;
+  progression: number;
+  stepLastProposition: string;
+  akitude: string;
+  won: boolean;
+  ko: boolean;
+  started: boolean;
+  language: Languages;
+  theme: Themes;
+  childMode: boolean;
+  idProposition: string;
+  idBaseProposition: string;
+  nameProposition: string;
+  descriptionProposition: string;
+  photo: string;
+  pseudo: string;
+  flagPhoto: number;
+}
+
 export interface AkinatorOptions {
   language?: Languages;
   childMode?: boolean;
@@ -92,6 +117,62 @@ export class AkinatorClient {
     this._theme = options.theme ?? Themes.Character;
     this._proxy = options.proxy;
     this._retries = options.retries ?? 3;
+  }
+
+  toJSON(): SessionData {
+    return {
+      session: this._session,
+      signature: this._signature,
+      url: this._url,
+      identifiant: this._identifiant,
+      question: this._question,
+      step: this._step,
+      progression: this._progression,
+      stepLastProposition: this._stepLastProposition,
+      akitude: this._akitude,
+      won: this._won,
+      ko: this._ko,
+      started: this._started,
+      language: this._language,
+      theme: this._theme,
+      childMode: this._childMode,
+      idProposition: this._idProposition,
+      idBaseProposition: this._idBaseProposition,
+      nameProposition: this._nameProposition,
+      descriptionProposition: this._descriptionProposition,
+      photo: this._photo,
+      pseudo: this._pseudo,
+      flagPhoto: this._flagPhoto,
+    };
+  }
+
+  static fromJSON(data: SessionData, options?: AkinatorOptions): AkinatorClient {
+    const client = new AkinatorClient({
+      language: data.language,
+      childMode: data.childMode,
+      theme: data.theme,
+      ...options,
+    });
+    client._session = data.session;
+    client._signature = data.signature;
+    client._url = data.url;
+    client._identifiant = data.identifiant;
+    client._question = data.question;
+    client._step = data.step;
+    client._progression = data.progression;
+    client._stepLastProposition = data.stepLastProposition;
+    client._akitude = data.akitude;
+    client._won = data.won;
+    client._ko = data.ko;
+    client._started = data.started;
+    client._idProposition = data.idProposition;
+    client._idBaseProposition = data.idBaseProposition;
+    client._nameProposition = data.nameProposition;
+    client._descriptionProposition = data.descriptionProposition;
+    client._photo = data.photo;
+    client._pseudo = data.pseudo;
+    client._flagPhoto = data.flagPhoto;
+    return client;
   }
 
   private async _init(): Promise<void> {

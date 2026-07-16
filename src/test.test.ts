@@ -127,3 +127,49 @@ describe("ANSWER_LABELS", () => {
     }
   });
 });
+
+describe("session persistence", () => {
+  it("should serialize to JSON", () => {
+    const client = new AkinatorClient({
+      language: Languages.English,
+      theme: Themes.Animals,
+      childMode: true,
+    });
+    const data = client.toJSON();
+    expect(data.language).toBe(Languages.English);
+    expect(data.theme).toBe(Themes.Animals);
+    expect(data.childMode).toBe(true);
+    expect(data.started).toBe(false);
+  });
+
+  it("should restore from JSON", () => {
+    const original = new AkinatorClient({
+      language: Languages.French,
+      theme: Themes.Character,
+    });
+    const data = original.toJSON();
+    data.started = true;
+    data.question = "Test question";
+    data.step = 5;
+    data.progression = 42.5;
+
+    const restored = AkinatorClient.fromJSON(data);
+    expect(restored.language).toBe(Languages.French);
+    expect(restored.theme).toBe(Themes.Character);
+    expect(restored.started).toBe(true);
+    expect(restored.question).toBe("Test question");
+    expect(restored.step).toBe(5);
+    expect(restored.progression).toBe(42.5);
+  });
+
+  it("should roundtrip through JSON", () => {
+    const client = new AkinatorClient({
+      language: Languages.Japanese,
+      theme: Themes.Animals,
+      childMode: true,
+    });
+    const data = client.toJSON();
+    const restored = AkinatorClient.fromJSON(data);
+    expect(restored.toJSON()).toEqual(data);
+  });
+});

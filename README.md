@@ -31,6 +31,7 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 - 🔁 Automatic retry on network errors
 - 🌐 HTTP proxy support
 - 👶 Child mode support
+- 💾 Session persistence (save/load games)
 
 ## Requirements
 
@@ -252,7 +253,19 @@ new AkinatorClient({ proxy: "http://proxy:8080" })
 
 ### Can I resume a game?
 
-No. Each `start()` creates a new session. There's no persistence between games.
+Yes! Use `toJSON()` and `fromJSON()` to save and restore sessions:
+
+```js
+// Save
+const data = akinator.toJSON();
+fs.writeFileSync("session.json", JSON.stringify(data));
+
+// Load
+const saved = JSON.parse(fs.readFileSync("session.json", "utf8"));
+const restored = AkinatorClient.fromJSON(saved);
+```
+
+See `examples/session-persistence.js` for a complete example.
 
 ### Which Node.js version is required?
 
@@ -264,10 +277,10 @@ Pull requests are welcome! Feel free to open issues for bugs or feature requests
 
 ## Roadmap
 
-- [ ] More examples
+- [x] Session persistence
+- [x] More examples
 - [ ] Browser support
 - [ ] SOCKS5 proxy support
-- [ ] Session persistence
 
 ## License
 
