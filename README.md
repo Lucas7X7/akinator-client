@@ -51,6 +51,16 @@ if (result.won) {
 new AkinatorClient(options?)
 ```
 
+You can use the enum or the string code directly:
+
+```js
+// Using enum
+new AkinatorClient({ language: Languages.English })
+
+// Using string code
+new AkinatorClient({ language: "en" })
+```
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `language` | `Languages` | `Portuguese` | Game language |
