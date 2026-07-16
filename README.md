@@ -1,19 +1,38 @@
 # akinator-client
 
-Unofficial Node.js/TypeScript client for the [Akinator](https://akinator.com/) game API.
+[![npm version](https://img.shields.io/npm/v/akinator-client.svg)](https://www.npmjs.com/package/akinator-client)
+[![npm downloads](https://img.shields.io/npm/dm/akinator-client.svg)](https://www.npmjs.com/package/akinator-client)
+[![license](https://img.shields.io/npm/l/akinator-client.svg)](https://github.com/Lucas7X7/akinator-client/blob/main/LICENSE)
+[![typescript](https://img.shields.io/badge/typescript-5.5+-blue.svg)](https://www.typescriptlang.org/)
+
+A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) game.
+
+## Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Full Example](#full-example)
+- [Languages](#languages)
+- [Themes](#themes)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- Full game lifecycle: start, answer, back, continue, win
-- 16 languages with localized answer labels
-- 3 themes: Character, Objects, Animals
-- TypeScript with dual ESM/CJS output
-- Cloudflare bypass built-in
-- Child mode support
-- Automatic retry on network errors
-- HTTP proxy support
+- 🚀 Fully typed TypeScript API
+- 🌍 16 supported languages
+- 🎭 3 game themes
+- 🔄 Complete game lifecycle (start, answer, back, continue, win)
+- ☁️ Built-in Cloudflare bypass
+- 🔁 Automatic retry on network errors
+- 🌐 HTTP proxy support
+- 👶 Child mode support
 
 ## Quick Start
+
+Requires Node.js 18+
 
 ```bash
 npm install akinator-client
@@ -45,7 +64,7 @@ if (result.won) {
 }
 ```
 
-## API
+## API Reference
 
 ### Constructor
 
@@ -65,21 +84,21 @@ new AkinatorClient({ language: "en" })
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `language` | `Languages` | `Portuguese` | Game language |
-| `theme` | `Themes` | `Character` | Game theme |
+| `language` | `Languages` | `Languages.Portuguese` | Game language |
+| `theme` | `Themes` | `Themes.Character` | Game theme |
 | `childMode` | `boolean` | `false` | Enable child mode (no explicit content) |
 | `proxy` | `string` | - | HTTP proxy URL (e.g. `http://proxy:8080`) |
 | `retries` | `number` | `3` | Number of retries on network errors |
 
 ### Methods
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `start()` | `Promise<AnswerResult>` | Start a new game |
-| `answer(answer)` | `Promise<AnswerResult>` | Answer the current question |
-| `back()` | `Promise<AnswerResult>` | Go back to the previous question |
-| `continue()` | `Promise<AnswerResult>` | Continue after a wrong guess |
-| `submitWin()` | `Promise<void>` | Confirm a correct guess |
+| Method | Returns | Throws | Description |
+|--------|---------|--------|-------------|
+| `start()` | `Promise<AnswerResult>` | Theme not available, HTTP error | Start a new game |
+| `answer(answer)` | `Promise<AnswerResult>` | Game not started, already guessed | Answer the current question |
+| `back()` | `Promise<AnswerResult>` | Game not started, first question | Go back to the previous question |
+| `continue()` | `Promise<AnswerResult>` | Game not started, no guess | Continue after a wrong guess |
+| `submitWin()` | `Promise<void>` | Game not started, no guess | Confirm a correct guess |
 
 ### Properties
 
@@ -178,21 +197,21 @@ Run with: `npx tsx example.js`
 | Code | Language | Available Themes |
 |------|----------|------------------|
 | `en` | English | Character, Animals, Objects |
-| `fr` | Francais | Character, Animals, Objects |
+| `fr` | Français | Character, Animals, Objects |
 | `de` | Deutsch | Character, Animals |
-| `es` | Espanol | Character, Animals |
+| `es` | Español | Character, Animals |
 | `it` | Italiano | Character, Animals |
-| `jp` | Japanese | Character, Animals |
-| `pt` | Portugues | Character |
-| `ar` | Arabic | Character |
-| `cn` | Chinese | Character |
-| `il` | Hebrew | Character |
-| `kr` | Korean | Character |
-| `nl` | Dutch | Character |
-| `pl` | Polish | Character |
-| `ru` | Russian | Character |
-| `tr` | Turkish | Character |
-| `id` | Indonesian | Character |
+| `jp` | 日本語 | Character, Animals |
+| `pt` | Português | Character |
+| `ar` | العربية | Character |
+| `cn` | 中文 | Character |
+| `il` | עברית | Character |
+| `kr` | 한국어 | Character |
+| `nl` | Nederlands | Character |
+| `pl` | Polski | Character |
+| `ru` | Русский | Character |
+| `tr` | Türkçe | Character |
+| `id` | Indonesia | Character |
 
 ## Themes
 
@@ -201,6 +220,27 @@ Run with: `npx tsx example.js`
 | `Themes.Character` | 1 | Guess a character (default) |
 | `Themes.Objects` | 2 | Guess an object |
 | `Themes.Animals` | 14 | Guess an animal |
+
+## FAQ
+
+**Does this work behind Cloudflare?**
+Yes. The library uses `got-scraping` to bypass Cloudflare's TLS fingerprinting automatically.
+
+**Can I use proxies?**
+Yes. Pass a proxy URL in the constructor:
+```js
+new AkinatorClient({ proxy: "http://proxy:8080" })
+```
+
+**Can I resume a game?**
+No. Each `start()` creates a new session. There's no persistence between games.
+
+**Which Node.js version is required?**
+Node.js 18 or higher.
+
+## Contributing
+
+Pull requests are welcome! Feel free to open issues for bugs or feature requests.
 
 ## License
 
