@@ -5,6 +5,7 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 ## Contents
 
 - [Features](#features)
+- [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [API Reference](#api-reference)
 - [Full Example](#full-example)
@@ -12,6 +13,7 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 - [Themes](#themes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ## Features
@@ -20,14 +22,16 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 - 🌍 16 supported languages
 - 🎭 3 game themes
 - 🔄 Complete game lifecycle (start, answer, back, continue, win)
-- ☁️ Built-in Cloudflare bypass
+- ☁️ Handles Akinator's current web protection flow
 - 🔁 Automatic retry on network errors
 - 🌐 HTTP proxy support
 - 👶 Child mode support
 
-## Quick Start
+## Requirements
 
-Requires Node.js 18+
+- Node.js >= 18
+
+## Quick Start
 
 ```bash
 npm install akinator-client
@@ -60,6 +64,15 @@ if (result.won) {
 ```
 
 ## API Reference
+
+```ts
+import {
+  AkinatorClient,
+  Languages,
+  Themes,
+  Answers,
+} from "akinator-client";
+```
 
 ### Constructor
 
@@ -219,7 +232,7 @@ Run with: `npx tsx example.js`
 ## FAQ
 
 **Does this work behind Cloudflare?**
-Yes. The library uses `got-scraping` to bypass Cloudflare's TLS fingerprinting automatically.
+Yes. The library uses `got-scraping` to handle Akinator's current web protection flow automatically.
 
 **Can I use proxies?**
 Yes. Pass a proxy URL in the constructor:
@@ -236,6 +249,12 @@ Node.js 18 or higher.
 ## Contributing
 
 Pull requests are welcome! Feel free to open issues for bugs or feature requests.
+
+## Roadmap
+
+- [ ] More examples
+- [ ] Browser support
+- [ ] Better proxy support
 
 ## License
 
