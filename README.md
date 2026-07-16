@@ -126,7 +126,7 @@ new AkinatorClient({ language: "en" })
 interface AnswerResult {
   won: boolean;
   ko: boolean;
-  akitude: string;
+  akitude: string; // Akinator's current reaction/expression
   step: number;
   progression: number;
   question: string;
@@ -219,7 +219,7 @@ Run with: `npx tsx example.js`
 | `pl` | Polski | Character |
 | `ru` | Русский | Character |
 | `tr` | Türkçe | Character |
-| `id` | Indonesia | Character |
+| `id` | Bahasa Indonesia | Character |
 
 ## Themes
 
@@ -231,19 +231,23 @@ Run with: `npx tsx example.js`
 
 ## FAQ
 
-**Does this work behind Cloudflare?**
+### Does this work behind Cloudflare?
+
 Yes. The library uses `got-scraping` to handle Akinator's current web protection flow automatically.
 
-**Can I use proxies?**
+### Can I use proxies?
+
 Yes. Pass a proxy URL in the constructor:
 ```js
 new AkinatorClient({ proxy: "http://proxy:8080" })
 ```
 
-**Can I resume a game?**
+### Can I resume a game?
+
 No. Each `start()` creates a new session. There's no persistence between games.
 
-**Which Node.js version is required?**
+### Which Node.js version is required?
+
 Node.js 18 or higher.
 
 ## Contributing
@@ -254,7 +258,8 @@ Pull requests are welcome! Feel free to open issues for bugs or feature requests
 
 - [ ] More examples
 - [ ] Browser support
-- [ ] Better proxy support
+- [ ] SOCKS5 proxy support
+- [ ] Session persistence
 
 ## License
 
