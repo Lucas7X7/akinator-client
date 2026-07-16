@@ -1,4 +1,4 @@
-import { Languages, Themes, Answers, AVAILABLE_THEMES } from "./storage.js";
+import { Languages, Themes, Answers, AVAILABLE_THEMES, ANSWER_LABELS } from "./storage.js";
 
 export interface WinResult {
   propositionId: number;
@@ -68,7 +68,7 @@ export class AkinatorClient {
   get childMode(): boolean { return this._childMode; }
 
   get answers(): string[] {
-    return ["Sim", "Não", "Não sei", "Provavelmente sim", "Provavelmente não"];
+    return ANSWER_LABELS[this._language] ?? ANSWER_LABELS[Languages.English];
   }
 
   get winResult(): WinResult {
@@ -97,8 +97,12 @@ export class AkinatorClient {
 
   private async _get(url: string): Promise<string> {
     await this._init();
-    const res = await this._got({ url, throwHttpErrors: false });
-    return res.body;
+    try {
+      const res = await this._got({ url, throwHttpErrors: false });
+      return res.body;
+    } catch (err: any) {
+      throw new Error(`Network error: ${err.message}`);
+    }
   }
 
   private async _post(url: string, body: Record<string, string | number | boolean>, options: { followRedirect?: boolean } = {}): Promise<any> {
@@ -107,22 +111,26 @@ export class AkinatorClient {
     for (const [key, value] of Object.entries(body)) {
       formBody.append(key, String(value));
     }
-    const res = await this._got({
-      url,
-      method: "POST",
-      body: formBody.toString(),
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      throwHttpErrors: false,
-      followRedirect: options.followRedirect ?? true,
-    });
-    return res;
+    try {
+      const res = await this._got({
+        url,
+        method: "POST",
+        body: formBody.toString(),
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        throwHttpErrors: false,
+        followRedirect: options.followRedirect ?? true,
+      });
+      return res;
+    } catch (err: any) {
+      throw new Error(`Network error: ${err.message}`);
+    }
   }
 
   async start(): Promise<AnswerResult> {
     const available = AVAILABLE_THEMES[this._language];
     if (!available || !available.includes(this._theme)) {
       throw new Error(
-        `Tema "${Themes[this._theme]}" não disponível para o idioma "${this._language}".`
+        `Theme "${Themes[this._theme]}" is not available for language "${this._language}".`
       );
     }
 
@@ -136,7 +144,7 @@ export class AkinatorClient {
     });
 
     if (res.statusCode !== 200) {
-      throw new Error(`Erro HTTP ao iniciar jogo: ${res.statusCode}`);
+      throw new Error(`HTTP error starting game: ${res.statusCode}`);
     }
 
     const html = res.body as string;
@@ -144,7 +152,7 @@ export class AkinatorClient {
     const sessionMatch = html.match(/name="session" id="session" value="([^"]+)"/);
     const signatureMatch = html.match(/name="signature" id="signature" value="([^"]+)"/);
     if (!sessionMatch || !signatureMatch) {
-      throw new Error("Falha ao extrair session/signature da resposta HTML.");
+      throw new Error("Failed to extract session/signature from HTML response.");
     }
     this._session = sessionMatch[1];
     this._signature = signatureMatch[1];
@@ -161,8 +169,12 @@ export class AkinatorClient {
       this._identifiant = identifiantMatch[1];
     }
 
+    const akitudeMatch = html.match(/akitude[^"]*"[^"]*([^/]+\.png)"/);
+    this._akitude = akitudeMatch ? akitudeMatch[1] : "defi.png";
+
     this._progression = 0;
     this._step = 0;
+    this._stepLastProposition = "";
     this._started = true;
     this._won = false;
     this._ko = false;
@@ -170,7 +182,7 @@ export class AkinatorClient {
     return {
       won: false,
       ko: false,
-      akitude: "defi.png",
+      akitude: this._akitude,
       step: 0,
       progression: 0,
       question: this._question,
@@ -179,9 +191,9 @@ export class AkinatorClient {
   }
 
   async answer(answer: Answers): Promise<AnswerResult> {
-    if (!this._started) throw new Error("Jogo não iniciado. Chame start() primeiro.");
-    if (this._won) throw new Error("Já houve um chute. Chame continue() ou submitWin().");
-    if (this._ko) throw new Error("Akinator já perdeu. Chame continue() para jogar novamente.");
+    if (!this._started) throw new Error("Game not started. Call start() first.");
+    if (this._won) throw new Error("A guess was already made. Call continue() or submitWin().");
+    if (this._ko) throw new Error("Akinator already gave up. Call continue() to play again.");
 
     const res = await this._post(this._url + "/answer", {
       step: this._step,
@@ -195,15 +207,15 @@ export class AkinatorClient {
     });
 
     if (res.statusCode !== 200) {
-      throw new Error(`Erro HTTP ao responder: ${res.statusCode}`);
+      throw new Error(`HTTP error answering: ${res.statusCode}`);
     }
 
     return this._updateResult(JSON.parse(res.body));
   }
 
   async back(): Promise<AnswerResult> {
-    if (!this._started) throw new Error("Jogo não iniciado.");
-    if (this._step === 0) throw new Error("Não é possível voltar mais. Já está na primeira pergunta.");
+    if (!this._started) throw new Error("Game not started.");
+    if (this._step === 0) throw new Error("Cannot go back further. Already on the first question.");
 
     const res = await this._post(this._url + "/cancel_answer", {
       step: this._step,
@@ -215,16 +227,16 @@ export class AkinatorClient {
     });
 
     if (res.statusCode !== 200) {
-      throw new Error(`Erro HTTP ao voltar: ${res.statusCode}`);
+      throw new Error(`HTTP error going back: ${res.statusCode}`);
     }
 
     return this._updateResult(JSON.parse(res.body));
   }
 
   async continue(): Promise<AnswerResult> {
-    if (!this._started) throw new Error("Jogo não iniciado.");
-    if (!this._won) throw new Error("Não há chute para continuar. O jogo ainda está em andamento.");
-    if (this._ko) throw new Error("Akinator já perdeu. Não há mais perguntas.");
+    if (!this._started) throw new Error("Game not started.");
+    if (!this._won) throw new Error("No guess to continue from. Game is still in progress.");
+    if (this._ko) throw new Error("Akinator already gave up. No more questions.");
 
     const res = await this._post(this._url + "/exclude", {
       step: this._step,
@@ -236,7 +248,7 @@ export class AkinatorClient {
     });
 
     if (res.statusCode !== 200) {
-      throw new Error(`Erro HTTP ao continuar: ${res.statusCode}`);
+      throw new Error(`HTTP error continuing: ${res.statusCode}`);
     }
 
     this._won = false;
@@ -244,8 +256,8 @@ export class AkinatorClient {
   }
 
   async submitWin(): Promise<void> {
-    if (!this._started) throw new Error("Jogo não iniciado.");
-    if (!this._won) throw new Error("Não há chute para confirmar.");
+    if (!this._started) throw new Error("Game not started.");
+    if (!this._won) throw new Error("No guess to confirm.");
 
     const res = await this._post(this._url + "/choice", {
       sid: this._theme,
@@ -260,7 +272,7 @@ export class AkinatorClient {
     }, { followRedirect: false });
 
     if (res.statusCode !== 200 && res.statusCode !== 302) {
-      throw new Error(`Erro HTTP ao confirmar vitória: ${res.statusCode}`);
+      throw new Error(`HTTP error confirming win: ${res.statusCode}`);
     }
   }
 
