@@ -1,10 +1,5 @@
 # akinator-client
 
-[![npm version](https://img.shields.io/npm/v/akinator-client.svg)](https://www.npmjs.com/package/akinator-client)
-[![npm downloads](https://img.shields.io/npm/dm/akinator-client.svg)](https://www.npmjs.com/package/akinator-client)
-[![license](https://img.shields.io/npm/l/akinator-client.svg)](https://github.com/Lucas7X7/akinator-client/blob/main/LICENSE)
-[![typescript](https://img.shields.io/badge/typescript-5.5+-blue.svg)](https://www.typescriptlang.org/)
-
 A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) game.
 
 ## Contents
