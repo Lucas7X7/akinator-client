@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.1] - 2026-08-24
+
+### Fixed
+- `proxy` option was forwarded with the wrong option name and rejected by got (`Unexpected option: proxy`). It is now correctly mapped to got-scraping's `proxyUrl` (#2)
+
 ## [1.2.0] - 2026-07-16
 
 ### Added

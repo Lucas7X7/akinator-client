@@ -203,7 +203,7 @@ export class AkinatorClient {
       const res = await this._got({
         url,
         throwHttpErrors: false,
-        ...(this._proxy ? { proxy: this._proxy } : {}),
+        ...(this._proxy ? { proxyUrl: this._proxy } : {}),
       });
       return res.body;
     });
@@ -223,7 +223,7 @@ export class AkinatorClient {
         headers: { "content-type": "application/x-www-form-urlencoded" },
         throwHttpErrors: false,
         followRedirect: options.followRedirect ?? true,
-        ...(this._proxy ? { proxy: this._proxy } : {}),
+        ...(this._proxy ? { proxyUrl: this._proxy } : {}),
       });
       return res;
     });
