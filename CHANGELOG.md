@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.2] - 2026-08-25
+
+### Fixed
+- Clear error message when Akinator returns HTML instead of JSON (session expired / proxy interrupted) (#3)
+
 ## [1.2.1] - 2026-08-24
 
 ### Fixed

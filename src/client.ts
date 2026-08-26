@@ -209,6 +209,16 @@ export class AkinatorClient {
     });
   }
 
+  private _parseJson(body: string, endpoint: string): any {
+    const trimmed = body.trimStart();
+    if (trimmed.charAt(0) === "<") {
+      throw new Error(
+        `Akinator returned HTML instead of JSON on "${endpoint}". This usually means the session expired or your proxy interrupted the request. Try starting a new game.`
+      );
+    }
+    return JSON.parse(trimmed);
+  }
+
   private async _post(url: string, body: Record<string, string | number | boolean>, options: { followRedirect?: boolean } = {}): Promise<any> {
     await this._init();
     const formBody = new URLSearchParams();
@@ -313,7 +323,7 @@ export class AkinatorClient {
       throw new Error(`HTTP error answering: ${res.statusCode}`);
     }
 
-    return this._updateResult(JSON.parse(res.body));
+    return this._updateResult(this._parseJson(res.body, "/answer"));
   }
 
   async back(): Promise<AnswerResult> {
@@ -333,7 +343,7 @@ export class AkinatorClient {
       throw new Error(`HTTP error going back: ${res.statusCode}`);
     }
 
-    return this._updateResult(JSON.parse(res.body));
+    return this._updateResult(this._parseJson(res.body, "/cancel_answer"));
   }
 
   async continue(): Promise<AnswerResult> {
@@ -355,7 +365,7 @@ export class AkinatorClient {
     }
 
     this._won = false;
-    return this._updateResult(JSON.parse(res.body));
+    return this._updateResult(this._parseJson(res.body, "/exclude"));
   }
 
   async submitWin(): Promise<void> {

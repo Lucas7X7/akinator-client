@@ -48,3 +48,56 @@ describe("proxy support (regression: issue #2)", () => {
     }
   });
 });
+
+describe("HTML response detection (issue #3)", () => {
+  beforeEach(() => {
+    mockGotScraping.mockReset();
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: FAKE_GAME_HTML,
+      headers: {},
+    });
+  });
+
+  it("throws a clear error when answer() gets HTML instead of JSON", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    await client.start();
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: "<!DOCTYPE html><html><body>Error</body></html>",
+      headers: {},
+    });
+
+    await expect(client.answer(0 as any)).rejects.toThrow(
+      /Akinator returned HTML instead of JSON.*\/answer/
+    );
+  });
+
+  it("throws a clear error when continue() gets HTML instead of JSON", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    await client.start();
+
+    const winResponse = JSON.stringify({
+      id_proposition: "123",
+      name_proposition: "Test",
+      pseudo: "test",
+    });
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: winResponse,
+      headers: {},
+    });
+    await client.answer(0 as any);
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: "<!DOCTYPE html><html><body>Error</body></html>",
+      headers: {},
+    });
+
+    await expect(client.continue()).rejects.toThrow(
+      /Akinator returned HTML instead of JSON.*\/exclude/
+    );
+  });
+});
