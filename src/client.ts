@@ -212,6 +212,13 @@ export class AkinatorClient {
   private _parseJson(body: string, endpoint: string): any {
     const trimmed = body.trimStart();
     if (trimmed.charAt(0) === "<") {
+      const isChallenge =
+        body.includes("challenge-platform") || body.includes("Vml0YWwgQVBJIGJsb2NrZWQ");
+      if (isChallenge) {
+        throw new Error(
+          `Akinator served a Cloudflare anti-bot challenge on "${endpoint}" instead of JSON. This server-side protection usually triggers after the game ends (e.g. on continue after a win) and cannot be bypassed from a plain HTTP client. Consider using a headless browser (Playwright/Puppeteer) for the full session.`
+        );
+      }
       throw new Error(
         `Akinator returned HTML instead of JSON on "${endpoint}". This usually means the session expired or your proxy interrupted the request. Try starting a new game.`
       );

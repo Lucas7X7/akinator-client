@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.3] - 2026-08-27
+
+### Changed
+- Detect and report Cloudflare anti-bot challenges distinctly (root cause of `continue()` returning HTML — "Vital API blocked") (#3)
+
 ## [1.2.2] - 2026-08-25
 
 ### Fixed

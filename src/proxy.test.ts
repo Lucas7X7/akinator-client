@@ -100,4 +100,29 @@ describe("HTML response detection (issue #3)", () => {
       /Akinator returned HTML instead of JSON.*\/exclude/
     );
   });
+
+  it("detects a Cloudflare challenge and reports it distinctly", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    await client.start();
+
+    const winResponse = JSON.stringify({
+      id_proposition: "123",
+      name_proposition: "Test",
+      pseudo: "test",
+    });
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: winResponse,
+      headers: {},
+    });
+    await client.answer(0 as any);
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: `<html><title>Akinator</title>'<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script>'error=Vml0YWwgQVBJIGJsb2NrZWQ%3D`,
+      headers: {},
+    });
+
+    await expect(client.continue()).rejects.toThrow(/Cloudflare anti-bot challenge/);
+  });
 });
