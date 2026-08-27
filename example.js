@@ -79,8 +79,10 @@ async function main() {
     } else {
       const cont = await ask("Keep playing? (y/n): ");
       if (cont.trim().toLowerCase() === "y") {
-        const next = await aki.continue();
-        console.log(`\nContinuing... ${next.question}\n`);
+        // Akinator's continue (/exclude) endpoint is currently broken server-side.
+        // Start a new session instead.
+        await aki.start();
+        console.log(`\nStarting a new game... ${aki.question}\n`);
       }
     }
   }

@@ -114,6 +114,8 @@ new AkinatorClient({ language: "en" })
 | `answer(answer)` | `Promise<AnswerResult>` | Game not started, already guessed | Answer the current question |
 | `back()` | `Promise<AnswerResult>` | Game not started, first question | Go back to the previous question |
 | `continue()` | `Promise<AnswerResult>` | Game not started, no guess | Continue after a wrong guess |
+
+> **Note on `continue()`:** Akinator's `/exclude` endpoint is currently returning a generic error page ("A technical problem has occurred") instead of JSON on their server side (see [issue #3](https://github.com/Lucas7X7/akinator-client/issues/3) and [akinator.py #14](https://github.com/Ombucha/akinator.py/issues/14)). This is **not** a proxy/network problem and affects every Akinator client, even the official browser. As a workaround, start a new session with `start()` when you want to keep playing after a wrong guess instead of relying on `continue()`. We'll re-test periodically and this will work again if/when Akinator fixes their endpoint.
 | `submitWin()` | `Promise<void>` | Game not started, no guess | Confirm a correct guess |
 
 ### Properties
@@ -199,8 +201,9 @@ if (akinator.ko) {
     await akinator.submitWin();
     console.log("Confirmed!");
   } else {
-    const next = await akinator.continue();
-    console.log(`\nContinuing... ${next.question}\n`);
+    console.log("\nStarting a new game (Akinator's continue endpoint is unreliable)\n");
+    await akinator.start();
+    await ask("\nAsk your next character!\n");
   }
 }
 

@@ -158,7 +158,12 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.customId === "aki_continue") {
     const aki = games.get(interaction.user.id);
     if (aki) {
-      const result = await aki.continue();
+      // Note: Akinator's /exclude endpoint is currently broken server-side,
+      // so continue() may throw. Start a new session as a fallback.
+      let result = await aki.continue().catch(async () => {
+        const r = await aki.start();
+        return r;
+      });
       const embed = new EmbedBuilder()
         .setTitle("Akinator")
         .setDescription(result.question)

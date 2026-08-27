@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.4] - 2026-08-27
+
+### Docs
+- Document that Akinator's `/exclude` (used by `continue()`) is currently broken server-side; recommend `start()` as a workaround (#3)
+
 ## [1.2.3] - 2026-08-27
 
 ### Changed
