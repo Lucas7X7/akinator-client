@@ -50,7 +50,13 @@ export interface AkinatorOptions {
   theme?: Themes;
   proxy?: string;
   retries?: number;
+  ua?: string;
+  scraperApiKey?: string;
+  scraperApiSession?: number;
 }
+
+const DEFAULT_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 type GotScraping = typeof import("got-scraping").gotScraping;
 
@@ -83,8 +89,12 @@ export class AkinatorClient {
   private _theme: Themes;
   private _proxy?: string;
   private _retries: number;
+  private _ua: string;
+  private _scraperApiKey?: string;
+  private _scraperApiSession: number;
 
   private _got!: GotScraping;
+  private _cookies: Record<string, string> = {};
 
   get question(): string { return this._question; }
   get step(): number { return this._step; }
@@ -117,6 +127,10 @@ export class AkinatorClient {
     this._theme = options.theme ?? Themes.Character;
     this._proxy = options.proxy;
     this._retries = options.retries ?? 3;
+    this._ua = options.ua ?? DEFAULT_UA;
+    this._scraperApiKey = options.scraperApiKey;
+    this._scraperApiSession =
+      options.scraperApiSession ?? Math.floor(Math.random() * 1_000_000_000);
   }
 
   toJSON(): SessionData {
@@ -197,14 +211,71 @@ export class AkinatorClient {
     throw lastError!;
   }
 
+  private _cookieHeader(): string {
+    const names = Object.keys(this._cookies);
+    if (names.length === 0) return "";
+    return names.map((n) => `${n}=${this._cookies[n]}`).join("; ");
+  }
+
+  private _captureSetCookies(headers: any): void {
+    const raw = headers["set-cookie"];
+    if (!raw) return;
+    const list = Array.isArray(raw) ? raw : [raw];
+    for (const item of list) {
+      const m = item.trim().match(/^([^=]+)=([^;]*)/);
+      if (m) this._cookies[m[1].trim()] = m[2].trim();
+    }
+  }
+
+  private async _scraperApiCall(
+    method: "GET" | "POST",
+    url: string,
+    body?: string
+  ): Promise<{ statusCode: number; body: string; headers: Record<string, string | string[] | undefined> }> {
+    const api = new URL("https://api.scraperapi.com");
+    api.searchParams.set("api_key", this._scraperApiKey!);
+    api.searchParams.set("url", url);
+    api.searchParams.set("session_number", String(this._scraperApiSession));
+    const cookie = this._cookieHeader();
+    const headers: Record<string, string> = {};
+    if (cookie) {
+      api.searchParams.set("keep_headers", "true");
+      headers["cookie"] = cookie;
+    }
+    const init: RequestInit = { method, headers, signal: AbortSignal.timeout(60000) };
+    if (method === "POST") {
+      headers["content-type"] = "application/x-www-form-urlencoded";
+      init.body = body ?? "";
+    }
+    const res = await fetch(api, init);
+    return {
+      statusCode: res.status,
+      body: await res.text(),
+      headers: { "set-cookie": res.headers.get("set-cookie") ?? undefined },
+    };
+  }
+
   private async _get(url: string): Promise<string> {
+    if (this._scraperApiKey) {
+      return this._requestWithRetry(async () => {
+        const res = await this._scraperApiCall("GET", url);
+        this._captureSetCookies(res.headers);
+        return res.body;
+      });
+    }
     await this._init();
     return this._requestWithRetry(async () => {
       const res = await this._got({
         url,
         throwHttpErrors: false,
+        headers: {
+          "user-agent": this._ua,
+          ...(this._cookieHeader() ? { cookie: this._cookieHeader() } : {}),
+        },
+        context: { useHeaderGenerator: false },
         ...(this._proxy ? { proxyUrl: this._proxy } : {}),
       });
+      this._captureSetCookies(res.headers);
       return res.body;
     });
   }
@@ -216,7 +287,7 @@ export class AkinatorClient {
         body.includes("challenge-platform") || body.includes("Vml0YWwgQVBJIGJsb2NrZWQ");
       if (isChallenge) {
         throw new Error(
-          `Akinator served a Cloudflare anti-bot challenge on "${endpoint}" instead of JSON. This server-side protection usually triggers after the game ends (e.g. on continue after a win) and cannot be bypassed from a plain HTTP client. Consider using a headless browser (Playwright/Puppeteer) for the full session.`
+          `Akinator served an anti-bot challenge ("Vital API blocked"/Cloudflare) on "${endpoint}" instead of JSON. A direct HTTP request with a mismatched TLS fingerprint cannot pass it. Pass a ScraperAPI key via the "scraperApiKey" option (or route through a browser-aware proxy) so the challenge is handled on the provider side, then continue() will work.`
         );
       }
       throw new Error(
@@ -227,21 +298,34 @@ export class AkinatorClient {
   }
 
   private async _post(url: string, body: Record<string, string | number | boolean>, options: { followRedirect?: boolean } = {}): Promise<any> {
-    await this._init();
     const formBody = new URLSearchParams();
     for (const [key, value] of Object.entries(body)) {
       formBody.append(key, String(value));
     }
+    if (this._scraperApiKey) {
+      return this._requestWithRetry(async () => {
+        const res = await this._scraperApiCall("POST", url, formBody.toString());
+        this._captureSetCookies(res.headers);
+        return res;
+      });
+    }
+    await this._init();
     return this._requestWithRetry(async () => {
       const res = await this._got({
         url,
         method: "POST",
         body: formBody.toString(),
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "user-agent": this._ua,
+          ...(this._cookieHeader() ? { cookie: this._cookieHeader() } : {}),
+        },
         throwHttpErrors: false,
         followRedirect: options.followRedirect ?? true,
+        context: { useHeaderGenerator: false },
         ...(this._proxy ? { proxyUrl: this._proxy } : {}),
       });
+      this._captureSetCookies(res.headers);
       return res;
     });
   }
@@ -365,6 +449,7 @@ export class AkinatorClient {
       progression: this._progression,
       session: this._session,
       signature: this._signature,
+      forward_answer: 1,
     });
 
     if (res.statusCode !== 200) {
@@ -397,6 +482,10 @@ export class AkinatorClient {
   }
 
   private _updateResult(data: any): AnswerResult {
+    this._session = data["session"] ?? this._session;
+    this._signature = data["signature"] ?? this._signature;
+    this._step = Number(data["step"]) || this._step;
+    this._progression = Number(data["progression"]) || this._progression;
     const idProposition = data["id_proposition"];
 
     if (idProposition) {
@@ -434,8 +523,6 @@ export class AkinatorClient {
     }
 
     this._akitude = data["akitude"] ?? this._akitude;
-    this._step = Number(data["step"]) || this._step;
-    this._progression = Number(data["progression"]) || this._progression;
     this._question = data["question"] ?? this._question;
 
     return {

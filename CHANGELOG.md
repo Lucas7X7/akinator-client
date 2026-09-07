@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `ua` option to override the `User-Agent` header (default: Chrome 131)
+- `scraperApiKey` and `scraperApiSession` options to route requests through ScraperAPI's sync API and get past the anti-bot check on `continue()` (#3)
+- Cookie jar: `Set-Cookie` values are captured and forwarded on subsequent requests
+- `continue()` now sends `forward_answer` on `/exclude`, matching the web client
+
+### Fixed
+- `continue()` after a win sent a stale `step` to `/exclude`, so Akinator served the anti-bot challenge ("Vital API blocked") instead of JSON. `session`, `signature`, `step` and `progression` are now persisted from every answer response before the win/give-up branches (#3)
+- Requests use a constant, consistent User-Agent (`useHeaderGenerator: false`), avoiding mismatched browser header sets that triggered the anti-bot challenge
+
+### Docs
+- Document ScraperAPI usage (sync API key and sticky-session proxy) as a way to make `continue()` reliable
+
 ## [1.2.4] - 2026-08-27
 
 ### Docs

@@ -105,6 +105,9 @@ new AkinatorClient({ language: "en" })
 | `childMode` | `boolean` | `false` | Enable child mode (no explicit content) |
 | `proxy` | `string` | - | HTTP proxy URL (e.g. `http://proxy:8080`) |
 | `retries` | `number` | `3` | Number of retries on network errors |
+| `ua` | `string` | Chrome 131 UA | Override the `User-Agent` header |
+| `scraperApiKey` | `string` | - | [ScraperAPI](https://www.scraperapi.com/) key. Routes requests through their sync API and makes `continue()` work past the anti-bot check (see [continue()](#methods) note) |
+| `scraperApiSession` | `number` | random | Sticky IP session number used with `scraperApiKey` |
 
 ### Methods
 
@@ -114,9 +117,21 @@ new AkinatorClient({ language: "en" })
 | `answer(answer)` | `Promise<AnswerResult>` | Game not started, already guessed | Answer the current question |
 | `back()` | `Promise<AnswerResult>` | Game not started, first question | Go back to the previous question |
 | `continue()` | `Promise<AnswerResult>` | Game not started, no guess | Continue after a wrong guess |
-
-> **Note on `continue()`:** Akinator's `/exclude` endpoint is currently returning a generic error page ("A technical problem has occurred") instead of JSON on their server side (see [issue #3](https://github.com/Lucas7X7/akinator-client/issues/3) and [akinator.py #14](https://github.com/Ombucha/akinator.py/issues/14)). This is **not** a proxy/network problem and affects every Akinator client, even the official browser. As a workaround, start a new session with `start()` when you want to keep playing after a wrong guess instead of relying on `continue()`. We'll re-test periodically and this will work again if/when Akinator fixes their endpoint.
 | `submitWin()` | `Promise<void>` | Game not started, no guess | Confirm a correct guess |
+
+> **Note on `continue()`:** Akinator's `/exclude` endpoint (used by `continue()`) checks the client with an anti-bot script ("Vital API blocked" / Cloudflare). A plain HTTP client with a mismatched TLS fingerprint is served an HTML challenge instead of JSON, although a real browser passes. Route requests through a browser-aware service to make `continue()` work:
+>
+> ```js
+> // ScraperAPI sync API (simplest)
+> new AkinatorClient({ scraperApiKey: "YOUR_SCRAPERAPI_KEY" })
+>
+> // ScraperAPI proxy with a sticky IP session
+> new AkinatorClient({
+>   proxy: "http://scraperapi.session_number=123456:YOUR_SCRAPERAPI_KEY@proxy-server.scraperapi.com:8001",
+> })
+> ```
+>
+> Without a key/proxy, `continue()` throws a descriptive error; keep playing with a fresh `start()` instead (see [issue #3](https://github.com/Lucas7X7/akinator-client/issues/3)).
 
 ### Properties
 
@@ -201,7 +216,7 @@ if (akinator.ko) {
     await akinator.submitWin();
     console.log("Confirmed!");
   } else {
-    console.log("\nStarting a new game (Akinator's continue endpoint is unreliable)\n");
+    console.log("\nStarting a new game (continue() needs a scraperApiKey or browser-aware proxy)\n");
     await akinator.start();
     await ask("\nAsk your next character!\n");
   }
@@ -245,7 +260,7 @@ Run with: `npx tsx example.js`
 
 ### Does this work behind Cloudflare?
 
-Yes. The library uses `got-scraping` to handle Akinator's current web protection flow automatically.
+Yes. The library uses `got-scraping` to handle Akinator's current web protection flow automatically during the game.
 
 ### Can I use proxies?
 
@@ -253,6 +268,20 @@ Yes. Pass a proxy URL in the constructor:
 ```js
 new AkinatorClient({ proxy: "http://proxy:8080" })
 ```
+
+To bypass the anti-bot check that protects `continue()` after a win, route through a browser-aware service such as [ScraperAPI](https://www.scraperapi.com/). Use either the sync API key or an HTTP proxy with a sticky IP session:
+
+```js
+// Sync API (each request goes through api.scraperapi.com)
+new AkinatorClient({ scraperApiKey: "YOUR_SCRAPERAPI_KEY" })
+
+// HTTP proxy with sticky session on ScraperAPI's port 8001
+new AkinatorClient({
+  proxy: "http://scraperapi.session_number=123456:YOUR_SCRAPERAPI_KEY@proxy-server.scraperapi.com:8001",
+})
+```
+
+Each ScraperAPI request against `pt.akinator.com` costs 1 credit; a full game with a `continue()` uses roughly 15-25 credits. No Cloudflare/Turnstile bypass is triggered on this domain.
 
 ### Can I resume a game?
 

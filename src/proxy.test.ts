@@ -123,6 +123,80 @@ describe("HTML response detection (issue #3)", () => {
       headers: {},
     });
 
-    await expect(client.continue()).rejects.toThrow(/Cloudflare anti-bot challenge/);
+    await expect(client.continue()).rejects.toThrow(/\"Vital API blocked\"\/Cloudflare/);
+  });
+});
+
+describe("continue() reliability (issue #3 fix)", () => {
+  beforeEach(() => {
+    mockGotScraping.mockReset();
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: FAKE_GAME_HTML,
+      headers: {},
+    });
+  });
+
+  it("sends forward_answer and the win answer's updated step to /exclude", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    await client.start();
+
+    const winResponse = JSON.stringify({
+      id_proposition: "123",
+      name_proposition: "Test",
+      pseudo: "test",
+      step: 7,
+    });
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: winResponse,
+      headers: {},
+    });
+    await client.answer(0 as any);
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: JSON.stringify({ step: 8, progression: 50, question: "Next?" }),
+      headers: {},
+    });
+    const res = await client.continue();
+    expect(res.won).toBe(false);
+
+    const [opts] = mockGotScraping.mock.calls.at(-1) as [Record<string, any>];
+    expect(opts.url).toContain("/exclude");
+    expect(opts.method).toBe("POST");
+    expect(opts.body).toContain("step=7");
+    expect(opts.body).toContain("forward_answer=1");
+    expect(opts.body).not.toContain("step=0");
+  });
+
+  it("captures Set-Cookie and forwards it on subsequent requests", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: FAKE_GAME_HTML,
+      headers: { "set-cookie": ["SERVERID250165=7179d0bc|ap9B5"] },
+    });
+    await client.start();
+
+    const [, [opts]] = mockGotScraping.mock.calls as [Record<string, any>[], Record<string, any>[]];
+    expect(opts.headers.cookie).toBe("SERVERID250165=7179d0bc|ap9B5");
+    expect(opts.headers["user-agent"]).toBe(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    );
+  });
+
+  it("respects the ua option and disables the random header generator", async () => {
+    const client = new AkinatorClient({
+      language: Languages.English,
+      ua: "Mozilla/5.0 (custom)",
+    });
+    await client.start();
+
+    for (const [opts] of mockGotScraping.mock.calls) {
+      const options = opts as Record<string, any>;
+      expect(options.headers["user-agent"]).toBe("Mozilla/5.0 (custom)");
+      expect(options.context).toEqual({ useHeaderGenerator: false });
+    }
   });
 });
