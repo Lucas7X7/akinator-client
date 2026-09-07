@@ -162,7 +162,8 @@ describe("continue() reliability (issue #3 fix)", () => {
     const res = await client.continue();
     expect(res.won).toBe(false);
 
-    const [opts] = mockGotScraping.mock.calls.at(-1) as [Record<string, any>];
+    const calls = mockGotScraping.mock.calls;
+    const [opts] = calls[calls.length - 1] as [Record<string, any>];
     expect(opts.url).toContain("/exclude");
     expect(opts.method).toBe("POST");
     expect(opts.body).toContain("step=7");
