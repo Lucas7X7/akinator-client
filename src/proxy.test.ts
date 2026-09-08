@@ -201,3 +201,62 @@ describe("continue() reliability (issue #3 fix)", () => {
     }
   });
 });
+
+describe("back() keeps step/progression after /cancel_answer returns 0", () => {
+  beforeEach(() => {
+    mockGotScraping.mockReset();
+    mockGotScraping.mockResolvedValue({
+      statusCode: 200,
+      body: FAKE_GAME_HTML,
+      headers: {},
+    });
+  });
+
+  it("persists step=0 and progression=0 so the next answer advances", async () => {
+    const client = new AkinatorClient({ language: Languages.English });
+    await client.start();
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: JSON.stringify({
+        step: 3,
+        progression: 42.0,
+        question: "Q3?",
+        completion: "OK",
+      }),
+      headers: {},
+    });
+    await client.answer(0 as any);
+    expect(client.step).toBe(3);
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: JSON.stringify({ step: 0, progression: 0.0, question: "Q0?" }),
+      headers: {},
+    });
+    const b = await client.back();
+    expect(b.question).toBe("Q0?");
+    expect(client.step).toBe(0);
+    expect(client.progression).toBe(0);
+
+    mockGotScraping.mockResolvedValueOnce({
+      statusCode: 200,
+      body: JSON.stringify({
+        step: 1,
+        progression: 11.2848,
+        question: "Q1?",
+        completion: "OK",
+      }),
+      headers: {},
+    });
+    const r = await client.answer(1 as any);
+    expect(r.question).toBe("Q1?");
+    expect(client.step).toBe(1);
+
+    const calls = mockGotScraping.mock.calls;
+    const [answerOpts] = calls[calls.length - 1] as [Record<string, any>];
+    expect(answerOpts.url).toContain("/answer");
+    expect(answerOpts.body).toContain("step=0");
+    expect(answerOpts.body).toContain("progression=0");
+  });
+});

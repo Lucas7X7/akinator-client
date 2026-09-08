@@ -484,8 +484,11 @@ export class AkinatorClient {
   private _updateResult(data: any): AnswerResult {
     this._session = data["session"] ?? this._session;
     this._signature = data["signature"] ?? this._signature;
-    this._step = Number(data["step"]) || this._step;
-    this._progression = Number(data["progression"]) || this._progression;
+
+    const step = Number(data["step"]);
+    const progression = Number(data["progression"]);
+    this._step = Number.isNaN(step) ? this._step : step;
+    this._progression = Number.isNaN(progression) ? this._progression : progression;
     const idProposition = data["id_proposition"];
 
     if (idProposition) {
