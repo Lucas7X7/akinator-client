@@ -12,7 +12,10 @@ A modern, fully typed Node.js client for the [Akinator](https://akinator.com/) g
 - [Features](#features)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
+- [How the protocol works](#how-the-protocol-works)
 - [API Reference](#api-reference)
+- [continue() and the /exclude endpoint](#continue-and-the-exclude-endpoint)
+- [Error handling and challenges](#error-handling-and-challenges)
 - [Full Example](#full-example)
 - [Languages](#languages)
 - [Themes](#themes)
@@ -71,6 +74,19 @@ if (result.won) {
 }
 ```
 
+## How the protocol works
+
+Akinator's web app is a small state machine. The client reproduces the requests the browser's `scratch.js` makes, so it needs to keep some server-side state consistent. Here is the full flow:
+
+1. `GET /` — loads the page. The server answers with `Set-Cookie` (`SERVERID...`, `GPID`). The client keeps a mini cookie jar and forwards these on every request.
+2. `POST /game` with `sid` (theme) and `cm` (child mode) — returns the question page as **HTML** containing hidden fields `session` and `signature`. These are the game tokens.
+3. `POST /answer` repeatedly — returns **JSON**. Every answer response advances `step` and `progression`, and may rotate `session`/`signature`. The client persists all four from every response (this is what makes `continue()` and the win flow work later).
+4. `POST /exclude` only after a win (see [continue() and /exclude](#continue-and-the-exclude-endpoint)) — returns JSON with a new guess or question while excluding the previous answer.
+
+A `WinResult` is returned by the `/answer` that guessed right. Its payload also contains the **next `step`**; if you don't persist it, the follow-up `/exclude` request is sent with a stale position and the server rejects it. The client handles this automatically since v1.3.0.
+
+The anti-bot protection only bites at `/exclude`: it serves an HTML "Vital API blocked" page to HTTP clients whose TLS fingerprint doesn't match a real browser, blocking `continue()`. `start()`, `answer()` and `back()` are not affected.
+
 ## API Reference
 
 ```ts
@@ -106,7 +122,7 @@ new AkinatorClient({ language: "en" })
 | `proxy` | `string` | - | HTTP proxy URL (e.g. `http://proxy:8080`) |
 | `retries` | `number` | `3` | Number of retries on network errors |
 | `ua` | `string` | Chrome 131 UA | Override the `User-Agent` header |
-| `scraperApiKey` | `string` | - | [ScraperAPI](https://www.scraperapi.com/) key. Routes requests through their sync API and makes `continue()` work past the anti-bot check (see [continue()](#methods) note) |
+| `scraperApiKey` | `string` | - | [ScraperAPI](https://www.scraperapi.com/) key. Routes requests through their sync API so `continue()` works past the anti-bot check (see [transport options](#continue-and-the-exclude-endpoint)) |
 | `scraperApiSession` | `number` | random | Sticky IP session number used with `scraperApiKey` |
 
 ### Methods
@@ -119,19 +135,7 @@ new AkinatorClient({ language: "en" })
 | `continue()` | `Promise<AnswerResult>` | Game not started, no guess | Continue after a wrong guess |
 | `submitWin()` | `Promise<void>` | Game not started, no guess | Confirm a correct guess |
 
-> **Note on `continue()`:** Akinator's `/exclude` endpoint (used by `continue()`) checks the client with an anti-bot script ("Vital API blocked" / Cloudflare). A plain HTTP client with a mismatched TLS fingerprint is served an HTML challenge instead of JSON, although a real browser passes. Route requests through a browser-aware service to make `continue()` work:
->
-> ```js
-> // ScraperAPI sync API (simplest)
-> new AkinatorClient({ scraperApiKey: "YOUR_SCRAPERAPI_KEY" })
->
-> // ScraperAPI proxy with a sticky IP session
-> new AkinatorClient({
->   proxy: "http://scraperapi.session_number=123456:YOUR_SCRAPERAPI_KEY@proxy-server.scraperapi.com:8001",
-> })
-> ```
->
-> Without a key/proxy, `continue()` throws a descriptive error; keep playing with a fresh `start()` instead (see [issue #3](https://github.com/Lucas7X7/akinator-client/issues/3)).
+> **Note on `continue()`:** it needs a browser-aware transport (ScraperAPI key or sticky-session proxy), otherwise it throws a descriptive error. See [continue() and the /exclude endpoint](#continue-and-the-exclude-endpoint).
 
 ### Properties
 
@@ -165,6 +169,106 @@ interface WinResult {
   name: string;
   pictureUrl: string;
   description: string;
+}
+```
+
+## continue() and the /exclude endpoint
+
+`continue()` is called after Akinator guessed a character that is **wrong** (`won === true`). It posts to `/exclude`, which re-runs the algorithm excluding that answer and returns either another guess or a fresh question.
+
+```js
+if (akinator.won) {
+  const next = await akinator.continue();
+  console.log(next.won, next.question); // false, "Is your character a woman?"
+}
+```
+
+It fails for **two independent reasons**, and you need to understand both:
+
+1. **Stale `step`.** The win response from `/answer` contains the *next* `step` value. The web client sends that value on the follow-up `/exclude`; if the client keeps the old one, the server rejects the request. This was a bug in the library (fixed in v1.3.0) — the exclude body now looks like the browser's:
+
+   ```text
+   step=<win response step>&sid=1&cm=false&progression=<last progression>
+   session=<session>&signature=<signature>&forward_answer=1
+   ```
+
+2. **`forward_answer`.** The browser always sends `forward_answer: 1` on `/exclude`. The library sends it too (v1.3.0). Sending `/exclude` without it is treated as a different (unsupported) call shape.
+3. **Anti-bot challenge.** `/exclude` is the only endpoint that checks the client before answering. A plain HTTP client (default transport) with a mismatched TLS fingerprint receives an HTML page ("Vital API blocked") instead of JSON, so `continue()` throws a descriptive error.
+
+### Transport options
+
+To make `continue()` work, route the requests through something that presents a consistent browser-like fingerprint:
+
+| Transport | Enables `continue()` | Behavior |
+|-----------|---------------------|----------|
+| Default (no options) | ❌ throws on `/exclude` | `got-scraping` talks directly to `akinator.com` using Node's TLS. Works for the whole game, but the fingerprint is not a real browser's. |
+| `proxy` (plain HTTP proxy) | depends on the exit node | TCP is routed through the proxy; the TLS handshake happens on the exit side. A generic/datacenter proxy still gets challenged. |
+| `proxy` pointing at a [ScraperAPI](https://www.scraperapi.com/) sticky session | ✅ | `http://scraperapi.session_number=123456:KEY@proxy-server.scraperapi.com:8001` — the exit side presents a consistent browser profile and IP, so `/exclude` passes. |
+| `scraperApiKey` (sync API) | ✅ | Every request is a `GET`/`POST` to `api.scraperapi.com?api_key=...&url=<target>&session_number=N`, and cookies are forwarded with `keep_headers`. Same effect as above without a proxy layer. |
+
+```js
+// Option A – ScraperAPI sync API (simplest)
+new AkinatorClient({ scraperApiKey: "YOUR_SCRAPERAPI_KEY" })
+
+// Option B – ScraperAPI proxy with a sticky IP session
+new AkinatorClient({
+  proxy: "http://scraperapi.session_number=123456:YOUR_SCRAPERAPI_KEY@proxy-server.scraperapi.com:8001",
+})
+```
+
+Notes that matter in practice:
+
+- Each request against `pt.akinator.com` costs **1 credit** (verified via the `urlcost` endpoint); a full game plus a `continue()` uses roughly 15-25 credits. No Cloudflare/Turnstile bypass is triggered on this domain.
+- The sync API (**Option A**) does **not** forward a custom `User-Agent`: ScraperAPI returns HTTP 500 when `keep_headers` is combined with a custom UA header, so the client only forwards cookies through that path.
+- Keep the `session_number` sticky across the whole game (the client does this automatically; it picks a random one unless you pass `scraperApiSession`).
+- If you cannot use either transport, recover by starting a fresh game with `start()` — see [Error handling and challenges](#error-handling-and-challenges).
+
+## Error handling and challenges
+
+The client throws `Error`s with actionable messages. A few realistic patterns:
+
+**Anti-bot challenge (most important).** `continue()` throws whenever `/exclude` answers with HTML:
+
+```js
+const aki = new AkinatorClient();
+
+while (!aki.won && !aki.ko) {
+  await aki.answer(Answers.Yes);
+}
+
+try {
+  await aki.continue();
+} catch (err) {
+  console.log(err.message);
+  // "Akinator served an anti-bot challenge ("Vital API blocked"/Cloudflare) on
+  //  "/exclude" instead of JSON. A direct HTTP request with a mismatched TLS
+  //  fingerprint cannot pass it. Pass a ScraperAPI key via the "scraperApiKey"
+  //  option (or route through a browser-aware proxy) ..."
+
+  // Recover: either switch transport and keep playing,
+  // or start over and don't attempt continue().
+  const fresh = new AkinatorClient();
+  await fresh.start();
+}
+```
+
+**Retries.** Transient network errors are retried automatically (`retries`, default `3`); non-200 responses from Akinator throw `HTTP error starting game: <code>` / `HTTP error answering: <code>`. On a repeated failure, create a new client:
+
+```js
+const aki = new AkinatorClient({ retries: 5 });
+```
+
+**Expired sessions / HTML where JSON was expected.** `answer()` throws `Akinator returned HTML instead of JSON on "/answer". ... Try starting a new game.` Just `start()` again.
+
+**Akinator gives up (`ko`).** `continue()` then throws `No more questions`; start a new game.
+
+**Wrong guess recovery without a transport.** If you don't have ScraperAPI, treat a wrong guess like a loss and start over:
+
+```js
+if (akinator.won) {
+  console.log(`I thought of: ${akinator.winResult.name}`);
+  const correct = await ask("Was that right? (y/n)");
+  if (correct !== "y") await akinator.start(); // start over instead of continue()
 }
 ```
 
@@ -264,40 +368,38 @@ Yes. The library uses `got-scraping` to handle Akinator's current web protection
 
 ### Can I use proxies?
 
-Yes. Pass a proxy URL in the constructor:
+Yes. Any HTTP proxy works during the game:
 ```js
 new AkinatorClient({ proxy: "http://proxy:8080" })
 ```
 
-To bypass the anti-bot check that protects `continue()` after a win, route through a browser-aware service such as [ScraperAPI](https://www.scraperapi.com/). Use either the sync API key or an HTTP proxy with a sticky IP session:
-
-```js
-// Sync API (each request goes through api.scraperapi.com)
-new AkinatorClient({ scraperApiKey: "YOUR_SCRAPERAPI_KEY" })
-
-// HTTP proxy with sticky session on ScraperAPI's port 8001
-new AkinatorClient({
-  proxy: "http://scraperapi.session_number=123456:YOUR_SCRAPERAPI_KEY@proxy-server.scraperapi.com:8001",
-})
-```
-
-Each ScraperAPI request against `pt.akinator.com` costs 1 credit; a full game with a `continue()` uses roughly 15-25 credits. No Cloudflare/Turnstile bypass is triggered on this domain.
+To bypass the anti-bot check that protects `continue()`, the proxy's exit node must present a real browser fingerprint (see [Transport options](#continue-and-the-exclude-endpoint)). The validated recipes are a [ScraperAPI](https://www.scraperapi.com/) sticky-session proxy or its sync API key. Each request against `pt.akinator.com` costs 1 credit; a full game with `continue()` uses roughly 15-25 credits.
 
 ### Can I resume a game?
 
-Yes! Use `toJSON()` and `fromJSON()` to save and restore sessions:
+Yes. `toJSON()` serializes the full game state (session, signature, step, progression, cookies), and `AkinatorClient.fromJSON()` restores it. The realistic flow is: play a bit, save; later, load and keep answering or run `continue()` on a won game.
 
 ```js
-// Save
-const data = akinator.toJSON();
-fs.writeFileSync("session.json", JSON.stringify(data));
+const fs = require("fs");
 
-// Load
-const saved = JSON.parse(fs.readFileSync("session.json", "utf8"));
-const restored = AkinatorClient.fromJSON(saved);
+// Save mid-game
+fs.writeFileSync("session.json", JSON.stringify(akinator.toJSON()));
+
+// Load later and keep playing
+const restored = AkinatorClient.fromJSON(
+  JSON.parse(fs.readFileSync("session.json", "utf8"))
+);
+console.log(restored.question);            // same question, same state
+await restored.answer(Answers.Yes);
+
+// If the restored game was already won, continue() works with a
+// browser-aware transport:
+if (restored.won) {
+  const next = await restored.continue();
+}
 ```
 
-See `examples/session-persistence.js` for a complete example.
+See `examples/session-persistence.js` (interactive save/resume) and `examples/restore-and-continue.js` (restore then `continue()` with ScraperAPI) for complete examples.
 
 ### Which Node.js version is required?
 
