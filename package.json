@@ -1,26 +1,37 @@
 {
   "name": "akinator-client",
-  "version": "1.3.0",
-  "description": "A modern, fully typed Node.js client for Akinator that actually works. Bypasses Cloudflare 403, with proxy, retry, session persistence, 16 languages and Discord bot example.",
+  "version": "1.3.1",
+  "description": "A modern, fully typed Node.js client for Akinator with session persistence, proxy support, retries and 16 languages.",
+  "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     }
   },
   "files": [
     "dist",
-    "LICENSE"
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build:esm": "tsc -p tsconfig.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node -e \"require('node:fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}))\"",
     "build": "npm run build:esm && npm run build:cjs",
-    "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "test": "vitest run src",
+    "test:exports": "node --input-type=module -e \"import('./dist/esm/index.js').then(m => { if (!m.AkinatorClient) process.exit(1); console.log('ESM entry point loaded successfully') })\" && node -e \"const m=require('./dist/cjs/index.js'); if (!m.AkinatorClient) process.exit(1); console.log('CommonJS entry point loaded successfully')\"",
+    "check": "npm test && npm run build && npm run test:exports",
+    "prepublishOnly": "npm run check"
   },
   "repository": {
     "type": "git",
@@ -35,8 +46,6 @@
     "akinator-api",
     "akinator-client",
     "guess",
-    "game",
-    "cloudflare",
     "typescript",
     "nodejs",
     "discord-bot",
@@ -48,9 +57,12 @@
   "devDependencies": {
     "@types/node": "^26.1.1",
     "typescript": "^5.5.0",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "got-scraping": "^4.2.1"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

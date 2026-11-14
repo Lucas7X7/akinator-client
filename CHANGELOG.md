@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Persist cookies, the ScraperAPI sticky-session number, and the full local navigation history in `toJSON()` / `fromJSON()`.
+- Keep the previous win state intact when `/exclude` fails or returns invalid JSON.
+- Track `back()` eligibility using local answer history instead of the server's non-monotonic step semantics.
+- Reset stale win/KO data when a new game starts and keep win/KO flags mutually exclusive.
+- Prevent automatic retries of state-changing POST requests, avoiding duplicate answers after ambiguous network failures.
+- Preserve ScraperAPI response headers from the first request and forward cookies consistently.
+- Separate ESM and CommonJS package scopes and add runtime entry-point smoke tests.
+
+### Tests and release
+- Add automated coverage for persistence, failed `continue()`, multiple `back()` calls, KO recovery, and POST retry behavior.
+- Exclude test files from published build output.
+- Run tests, both builds, and ESM/CommonJS smoke tests before publishing.
+
 ## [1.3.0] - 2026-09-07
 
 ### Added
@@ -28,7 +44,7 @@
 ## [1.2.2] - 2026-08-25
 
 ### Fixed
-- Clear error message when Akinator returns HTML instead of JSON (session expired / proxy interrupted) (#3)
+- Clear error message when Akinator returns HTML instead of JSON (session expired / proxy interrupted the request)
 
 ## [1.2.1] - 2026-08-24
 

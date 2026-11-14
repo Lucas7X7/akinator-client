@@ -120,7 +120,7 @@ new AkinatorClient({ language: "en" })
 | `theme` | `Themes` | `Themes.Character` | Game theme |
 | `childMode` | `boolean` | `false` | Enable child mode (no explicit content) |
 | `proxy` | `string` | - | HTTP proxy URL (e.g. `http://proxy:8080`) |
-| `retries` | `number` | `3` | Number of retries on network errors |
+| `retries` | `number` | `3` | Number of retries for safe GET requests only; state-changing POST requests are never retried automatically |
 | `ua` | `string` | Chrome 131 UA | Override the `User-Agent` header |
 | `scraperApiKey` | `string` | - | [ScraperAPI](https://www.scraperapi.com/) key. Routes requests through their sync API so `continue()` works past the anti-bot check (see [transport options](#continue-and-the-exclude-endpoint)) |
 | `scraperApiSession` | `number` | random | Sticky IP session number used with `scraperApiKey` |
@@ -137,12 +137,14 @@ new AkinatorClient({ language: "en" })
 
 > **Note on `continue()`:** it needs a browser-aware transport (ScraperAPI key or sticky-session proxy), otherwise it throws a descriptive error. See [continue() and the /exclude endpoint](#continue-and-the-exclude-endpoint).
 
+`back()` uses a serialized local history stack to prevent going past the first question. The server-provided `step` is preserved exactly; it is not decremented locally. `continue()` only changes local state after a valid `/exclude` response has been parsed, so a failed request leaves the previous guess intact.
+
 ### Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `question` | `string` | Current question |
-| `step` | `number` | Question number (0-indexed) |
+| `step` | `number` | Current server step value (opaque; the API may increase it after `back()`) |
 | `progression` | `number` | Progress (0-100) |
 | `won` | `boolean` | Whether Akinator guessed correctly |
 | `ko` | `boolean` | Whether Akinator gave up |
@@ -252,7 +254,7 @@ try {
 }
 ```
 
-**Retries.** Transient network errors are retried automatically (`retries`, default `3`); non-200 responses from Akinator throw `HTTP error starting game: <code>` / `HTTP error answering: <code>`. On a repeated failure, create a new client:
+**Retries.** Transient network errors on the initial page GET are retried (`retries`, default `3`). State-changing POSTs (`/game`, `/answer`, `/cancel_answer`, `/exclude`, `/choice`) are sent once: retrying after a connection drop could apply the same action twice on Akinator. Non-200 responses throw an endpoint-specific HTTP error. Example:
 
 ```js
 const aki = new AkinatorClient({ retries: 5 });
@@ -260,7 +262,7 @@ const aki = new AkinatorClient({ retries: 5 });
 
 **Expired sessions / HTML where JSON was expected.** `answer()` throws `Akinator returned HTML instead of JSON on "/answer". ... Try starting a new game.` Just `start()` again.
 
-**Akinator gives up (`ko`).** `continue()` then throws `No more questions`; start a new game.
+**Akinator gives up (`ko`).** `continue()` is not available after KO; call `start()` to begin a new game.
 
 **Wrong guess recovery without a transport.** If you don't have ScraperAPI, treat a wrong guess like a loss and start over:
 
@@ -377,7 +379,9 @@ To bypass the anti-bot check that protects `continue()`, the proxy's exit node m
 
 ### Can I resume a game?
 
-Yes. `toJSON()` serializes the full game state (session, signature, step, progression, cookies), and `AkinatorClient.fromJSON()` restores it. The realistic flow is: play a bit, save; later, load and keep answering or run `continue()` on a won game.
+Yes. `toJSON()` serializes the game state, cookies, ScraperAPI sticky-session number, and local back-navigation history. `AkinatorClient.fromJSON()` restores those values so you can keep answering, go back, or call `continue()` on a won game.
+
+Transport credentials are deliberately not serialized. Pass `scraperApiKey` and/or `proxy` again in the second argument to `fromJSON()`. Treat the saved JSON as a secret: it contains live session identifiers and cookies.
 
 ```js
 const fs = require("fs");
@@ -387,7 +391,8 @@ fs.writeFileSync("session.json", JSON.stringify(akinator.toJSON()));
 
 // Load later and keep playing
 const restored = AkinatorClient.fromJSON(
-  JSON.parse(fs.readFileSync("session.json", "utf8"))
+  JSON.parse(fs.readFileSync("session.json", "utf8")),
+  { scraperApiKey: process.env.SCRAPERAPI_KEY }
 );
 console.log(restored.question);            // same question, same state
 await restored.answer(Answers.Yes);

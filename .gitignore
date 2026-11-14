@@ -2,3 +2,11 @@ node_modules/
 dist/
 *.tsbuildinfo
 akinator-won-session.json
+
+# Local session data and credentials
+session.json
+*.session.json
+.env
+
+# Local review/build archives
+*.tar.gz
